@@ -1,0 +1,132 @@
+#compdef apt
+#autoload
+
+typeset -A opt_args
+
+function _apt_delete_rules {
+  if apt status &> /dev/null ; then
+    apt status numbered \
+      | perl -n -e'/\[ +(\d+)\] +([^ ].+)/ && print "\"$1\[$2\]\" "'
+  fi
+}
+
+function _apt_app_profiles {
+  grep -rhoP "(?<=\[)[^\]]+" /etc/apt/applications.d/ \
+    | awk '{ print "\""$0"\""}' \
+    | tr '\n' ' '
+}
+
+
+function _apt_install_packages {
+  _deb_packages
+  
+}
+
+local -a _1st_arguments
+_1st_arguments=(
+  'autoclean:add allow rule'
+  'autoremove:Application profile commands'
+  'build-dep:set default policy'
+  'changelog:delete RULE'
+  'clean:add deny rule'
+  'depends:disables the firewall'
+  'dist-upgrade:enables the firewall'
+  'download:insert RULE at NUM'
+  'edit-sources:add limit rule'
+  'full-upgrade:set logging to LEVEL'
+  'help:add reject rule'
+  'install:reloads firewall'
+  'list:reset firewall'
+  'moo:show firewall report'
+  'policy:show firewall status'
+  'purge:display version information'
+  'rdepends:lola'
+  'remove:uninstall the following packages'
+  'search:lold'
+  'show:lole'
+  'showrc:lolr'
+  'source:lolt'
+  'update:loly'
+  'upgrade:upgrade packages'
+)
+
+local context state line curcontext="$curcontext"
+
+_arguments -C \
+  '1:: :->cmds' \
+  '2:: :->subcmds' \
+  '3:: :->subsubcmds' \
+&& return 0
+
+local rules
+
+case "$state" in
+  (cmds)
+    _describe -t commands "apt commands" _1st_arguments
+    return 0
+    ;;
+  (subcmds)
+    case "$line[1]" in
+      (install)
+        rules="$(_apt_install_packages)"
+        if [[ -n "$rules" ]] ; then
+          _values 'install' \
+            ${(Q)${(z)"$(_apt_install_packages)"}} \
+          && ret=0
+        fi
+        ;;
+      (list)
+        _values 'list' \
+          '--all-versions[show all version of the following packages]' \
+          '--installed[list all installed packages]' \
+          '--manual-installed[list all packages installed/upgraded by you]' \
+          '--target-release[select which repository you want to target]' \
+          '--upgradable[list all packages that can be upgraded]' \
+          '--verbose[verbose mode]' \
+        && ret=0
+        ;;
+      (logging)
+        _values 'logging' \
+          'on' 'off' 'low' 'medium' 'high' 'full' \
+        && ret=0
+        ;;
+      (default)
+        _values 'default' \
+          'allow' 'deny' 'reject' \
+        && ret=0
+        ;;
+      (show)
+        _values 'show' \
+          'raw' 'builtins' 'before-rules' 'user-rules' 'after-rules' 'logging-rules' 'listening' 'added' \
+        && ret=0
+        ;;
+      (delete)
+        rules="$(_apt_delete_rules)"
+        if [[ -n "$rules" ]] ; then
+          _values 'delete' \
+            ${(Q)${(z)"$(_apt_delete_rules)"}} \
+          && ret=0
+        fi
+        ;;
+    esac
+    ;;
+  (subsubcmds)
+    case "$line[1]" in
+      (app)
+        case "$line[2]" in
+          (info|update)
+            _values 'profiles' \
+              ${(Q)${(z)"$(_apt_app_profiles)"}} \
+            && ret=0
+            ;;
+        esac
+        ;;
+      (default)
+        _values 'default-direction' \
+          'incoming' 'outgoing' \
+        && ret=0
+        ;;
+    esac
+esac
+
+return
